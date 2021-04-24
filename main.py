@@ -1,22 +1,23 @@
 #import random
 import os
-#import sys
 #import nltk
 from nltk.stem import *		#word stemming
 from nltk.corpus import stopwords
 
-LEARNING_RATE = 0.12
-ITERATIONS = 100
+
+#parameters for altering model performance
+LEARNING_RATE = .5
+EPOCHS = 20
+REMOVE_STOPWORDS = False
 
 def main():
 	#nltk.download('stopwords')
-	accuracy = algo(True)
-	print("TOTAL ACCURACY WITH " + str(ITERATIONS) + " ITERATIONS:")
+	accuracy = algo(REMOVE_STOPWORDS)
+	print("TOTAL ACCURACY WITH " + str(EPOCHS) + " ITERATIONS:")
 	#print(str(round(accuracy, 3)) + "%")
 	print(str(accuracy) + "%")
 
 def algo(stop=False):
-	count = 0
 	print("Initializing Data...")
 	stops = set(stopwords.words('english'))
 
@@ -42,15 +43,17 @@ def algo(stop=False):
 						if stem not in bag_of_words.keys():
 							bag_of_words[stem] = 0
 				fo.close()
-	#Initialize weights with random values.
+	#Initialize weights with values.
+	#Replace `key: 0` with `key: random.random()` for random values
 	weights = {key: 0 for key in bag_of_words.keys()}
 	assert len(weights) == len(bag_of_words)
 
 	print("Iterating through training data, updating weights...")
 	directories = ["./train/spam", "./train/ham"]
-	for i in range(ITERATIONS):
-		if ((i*100.0)/ITERATIONS).is_integer():
-			print(str((i*100)/ITERATIONS) + "% complete ...")
+	for i in range(EPOCHS):
+		total_change = 0
+		if ((i*100.0)/EPOCHS).is_integer():
+			print(str((i*100)/EPOCHS) + "% complete ...")
 		for directory in directories:
 			for file in os.listdir(directory):
 				# index -7 of text file str determines the ground truth
@@ -70,12 +73,14 @@ def algo(stop=False):
 				prediction = 0 if prediction < 0 else 1
 				for w in weights.keys():
 					if bag_of_words[w] == 0 or truth == prediction:
-						count += 1
 						continue
 					delta_w = LEARNING_RATE * (truth - prediction) * bag_of_words[w]
 					weights[w] += delta_w
+					total_change += abs(delta_w)
 
 				resetFeatures(bag_of_words)
+		if total_change == 0:
+			print("NO CHANGE AT EPOCH " + str(i))
 
 	print("Verifying accuracies with test data...")
 	total_guesses = 0
@@ -99,7 +104,6 @@ def algo(stop=False):
 			if prediction == truth:
 				correct_guesses += 1
 			total_guesses += 1
-	print("count: " + str(count))
 	return (correct_guesses*100.0)/total_guesses
 
 def resetFeatures(words):
